@@ -217,10 +217,19 @@ def load_weights_from_hf(
     
     # 映射 HuggingFace 权重到我们的模型
     state_dict = _map_gpt2_weights(hf_state_dict, model)
-    
-    # 加载权重
-    model.load_state_dict(state_dict, strict=True)
-    
+
+    # 加载权重 (strict=False 因为 mask 是 buffer，不在官方权重中)
+    missing, unexpected = model.load_state_dict(state_dict, strict=False)
+
+    # 检查是否有真正的问题（mask buffer 是预期的 missing key）
+    unexpected_keys = [k for k in unexpected if "mask" not in k]
+    missing_keys = [k for k in missing if "mask" not in k]
+
+    if missing_keys:
+        print(f"警告: 缺少以下权重键: {missing_keys}")
+    if unexpected_keys:
+        print(f"警告: 有意外的权重键: {unexpected_keys}")
+
     print(f"成功加载 HuggingFace 模型权重：{model_name}")
     
     return model
@@ -269,13 +278,22 @@ def load_weights_from_modelscope(
     
     # 获取状态字典
     hf_state_dict = hf_model.state_dict()
-    
+
     # 映射权重
     state_dict = _map_gpt2_weights(hf_state_dict, model)
-    
-    # 加载权重
-    model.load_state_dict(state_dict, strict=True)
-    
+
+    # 加载权重 (strict=False 因为 mask 是 buffer，不在官方权重中)
+    missing, unexpected = model.load_state_dict(state_dict, strict=False)
+
+    # 检查是否有真正的问题（mask buffer 是预期的 missing key）
+    unexpected_keys = [k for k in unexpected if "mask" not in k]
+    missing_keys = [k for k in missing if "mask" not in k]
+
+    if missing_keys:
+        print(f"警告: 缺少以下权重键: {missing_keys}")
+    if unexpected_keys:
+        print(f"警告: 有意外的权重键: {unexpected_keys}")
+
     print(f"成功加载 ModelScope 模型权重：{model_name}")
     
     return model

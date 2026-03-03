@@ -37,6 +37,7 @@ class GPTConfig:
 
 # 预定义的模型配置
 # GPT-2 官方配置参考：https://github.com/openai/gpt-2/blob/master/src/hparams.py
+# 注意: qkv_bias=True 以匹配官方 GPT-2（使用 c_attn.bias）
 GPT_CONFIG_124M = GPTConfig(
     vocab_size=50257,
     context_length=1024,
@@ -44,7 +45,7 @@ GPT_CONFIG_124M = GPTConfig(
     n_heads=12,
     n_layers=12,
     drop_rate=0.1,
-    qkv_bias=False,
+    qkv_bias=True,  # 官方 GPT-2 的 attention 层有 bias
 )
 
 GPT_CONFIG_355M = GPTConfig(
@@ -54,7 +55,7 @@ GPT_CONFIG_355M = GPTConfig(
     n_heads=16,
     n_layers=24,
     drop_rate=0.1,
-    qkv_bias=False,
+    qkv_bias=True,
 )
 
 GPT_CONFIG_774M = GPTConfig(
@@ -64,7 +65,7 @@ GPT_CONFIG_774M = GPTConfig(
     n_heads=20,
     n_layers=36,
     drop_rate=0.1,
-    qkv_bias=False,
+    qkv_bias=True,
 )
 
 GPT_CONFIG_1558M = GPTConfig(
@@ -74,7 +75,7 @@ GPT_CONFIG_1558M = GPTConfig(
     n_heads=25,
     n_layers=48,
     drop_rate=0.1,
-    qkv_bias=False,
+    qkv_bias=True,
 )
 
 # 配置名称到配置对象的映射，便于命令行参数使用

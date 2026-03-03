@@ -155,32 +155,47 @@ def load_model(
         print(f"从检查点加载模型：{checkpoint_path}")
         checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
 
-        # 获取配置
-        if "config" in checkpoint:
-            # 从配置创建模型
-            config_dict = checkpoint["config"]
-            config = GPTConfig(
-                vocab_size=50257,
-                context_length=config_dict.get("max_length", 1024),
-                emb_dim=GPT_CONFIG_124M.emb_dim,
-                n_heads=GPT_CONFIG_124M.n_heads,
-                n_layers=GPT_CONFIG_124M.n_layers,
-                drop_rate=GPT_CONFIG_124M.drop_rate,
-                qkv_bias=GPT_CONFIG_124M.qkv_bias,
-            )
+        # 获取 model_state_dict（可能在不同层级）
+        if "model_state_dict" in checkpoint:
+            state_dict = checkpoint["model_state_dict"]
+            config_data = checkpoint.get("config", checkpoint.get("args", {}))
         else:
-            config = GPT_CONFIG_124M
+            state_dict = checkpoint
+            config_data = checkpoint.get("config", checkpoint.get("args", {}))
+
+        # 从权重中推断实际的 context_length（最可靠）
+        if "pos_emb.weight" in state_dict:
+            actual_context_length = state_dict["pos_emb.weight"].shape[0]
+            print(f"从权重推断 context_length: {actual_context_length}")
+        elif "trf_blocks.0.att.mask" in state_dict:
+            actual_context_length = state_dict["trf_blocks.0.att.mask"].shape[0]
+            print(f"从 attention mask 推断 context_length: {actual_context_length}")
+        else:
+            # 尝试从配置中获取
+            if isinstance(config_data, dict):
+                actual_context_length = config_data.get("max_length", config_data.get("context_length", 1024))
+            else:
+                actual_context_length = 1024
+            print(f"从配置文件获取 context_length: {actual_context_length}")
+
+        # 创建配置
+        config = GPTConfig(
+            vocab_size=50257,
+            context_length=actual_context_length,
+            emb_dim=GPT_CONFIG_124M.emb_dim,
+            n_heads=GPT_CONFIG_124M.n_heads,
+            n_layers=GPT_CONFIG_124M.n_layers,
+            drop_rate=GPT_CONFIG_124M.drop_rate,
+            qkv_bias=GPT_CONFIG_124M.qkv_bias,
+        )
 
         # 创建模型
         model = GPTModel(config)
 
         # 加载权重
-        if "model_state_dict" in checkpoint:
-            model.load_state_dict(checkpoint["model_state_dict"])
-        else:
-            model.load_state_dict(checkpoint)
+        model.load_state_dict(state_dict)
 
-        print(f"已加载检查点模型")
+        print(f"已加载检查点模型 (context_length={actual_context_length})")
 
     elif ms_model_name is not None:
         # 从 ModelScope 加载

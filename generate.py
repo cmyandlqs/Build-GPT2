@@ -38,7 +38,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="GPT-2 文本生成脚本")
     
     # ========== 模型加载 ==========
-    model_group = parser.add_mutually_exclusive_group(required=True)
+    model_group = parser.add_mutually_exclusive_group(required=False)
     model_group.add_argument(
         "--checkpoint",
         type=str,
@@ -56,6 +56,11 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help="ModelScope 模型名称（如 'AI-ModelScope/gpt2'）"
+    )
+    parser.add_argument(
+        "--random-init",
+        action="store_true",
+        help="使用随机初始化的模型（不加载任何权重）"
     )
     
     # ========== 模型来源 ==========
@@ -133,7 +138,8 @@ def load_model(
     hf_model_name: Optional[str] = None,
     ms_model_name: Optional[str] = None,
     model_source: str = "huggingface",
-    device: torch.device = torch.device("cpu")
+    device: torch.device = torch.device("cpu"),
+    random_init: bool = False
 ) -> tuple[GPTModel, GPTConfig]:
     """
     加载模型
@@ -144,13 +150,21 @@ def load_model(
         ms_model_name: ModelScope 模型名称
         model_source: 模型来源（huggingface 或 modelscope）
         device: 计算设备
+        random_init: 是否使用随机初始化
 
     Returns:
         (model, config) 元组
     """
     from utils import load_weights_from_hf, load_weights_from_modelscope
 
-    if checkpoint_path is not None:
+    # 随机初始化
+    if random_init:
+        print("使用随机初始化的模型")
+        config = GPT_CONFIG_124M
+        model = GPTModel(config)
+        print(f"已创建随机模型 (context_length={config.context_length})")
+
+    elif checkpoint_path is not None:
         # 从检查点加载
         print(f"从检查点加载模型：{checkpoint_path}")
         checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
@@ -377,13 +391,18 @@ def main():
     # ========== 设置设备 ==========
     device = get_device()
 
+    # 检查是否指定了模型来源
+    if not any([args.checkpoint, args.hf_model, args.ms_model, args.random_init]):
+        raise ValueError("必须指定 --checkpoint、--hf_model、--ms_model 或 --random_init 之一")
+
     # ========== 加载模型 ==========
     model, config = load_model(
         checkpoint_path=args.checkpoint,
         hf_model_name=args.hf_model,
         ms_model_name=args.ms_model,
         model_source=args.model_source,
-        device=device
+        device=device,
+        random_init=args.random_init
     )
     
     # ========== 加载分词器 ==========
